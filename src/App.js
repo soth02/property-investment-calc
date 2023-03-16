@@ -2,12 +2,9 @@ import React, { useState, useEffect } from "react";
 import PropertyMap from "./components/PropertyMap";
 import PropertyForm from "./components/PropertyForm";
 import Results from "./components/Results";
+import MortgageRates from "./components/MortgageRates";
 import { MapContainerProvider } from "./contexts/MapContainerContext";
-import {
-  fetchPropertyDataFromMLS,
-  fetchRentalData,
-  fetchCurrentMortgageRates,
-} from "./services/api";
+import { fetchRentalData, fetchCurrentMortgageRates } from "./services/api";
 import {
   calculateMortgagePayment,
   estimateExpenses,
@@ -21,43 +18,43 @@ function App() {
   const [downPayment, setDownPayment] = useState(0);
   const [mortgageTerm, setMortgageTerm] = useState(30);
   const [rentalData, setRentalData] = useState(null);
-  const [mortgageRates, setMortgageRates] = useState(null);
+  const [mortgageData, setMortgageData] = useState(null);
   const [NOI, setNOI] = useState(0);
   const [CoC, setCoC] = useState(0);
+  const [postalCode, setPostalCode] = useState("98006");
 
   useEffect(() => {
-    async function fetchData() {
-      const propertyData = await fetchPropertyDataFromMLS();
-      const rentalData = await fetchRentalData();
-      const mortgageRates = await fetchCurrentMortgageRates();
-      setPropertyList(propertyData);
-      setRentalData(rentalData);
-      setMortgageRates(mortgageRates);
-    }
     fetchData();
   }, []);
 
-  useEffect(() => {
-    if (!selectedProperty || !rentalData || !mortgageRates) return;
+  const fetchData = async () => {
+    const rentalData = await fetchRentalData();
+    const mortgageData = await fetchCurrentMortgageRates(postalCode);
+    setRentalData(rentalData);
+    setMortgageData(mortgageData.data.loan_analysis.market.mortgage_data);
+  };
 
-    const mortgagePayment = calculateMortgagePayment(
-      selectedProperty.price,
-      downPayment,
-      mortgageTerm,
-      mortgageRates
-    );
-    const expenses = estimateExpenses(selectedProperty, rentalData);
-    const NOI = calculateNOI(rentalData, expenses);
-    const CoC = calculateCoC(NOI, downPayment, mortgagePayment);
+  const handlePostalCodeChange = (event) => {
+    setPostalCode(event.target.value);
+  };
 
-    setNOI(NOI);
-    setCoC(CoC);
-  }, [selectedProperty, downPayment, mortgageTerm, rentalData, mortgageRates]);
+  const refreshMortgageRates = async () => {
+    const mortgageData = await fetchCurrentMortgageRates(postalCode);
+    setMortgageData(mortgageData.data.loan_analysis.market.mortgage_data);
+  };
 
   return (
     <MapContainerProvider>
       <div className="App">
         <h1>Property Investment Calculator</h1>
+        <label htmlFor="postal-code">Postal Code: </label>
+        <input
+          id="postal-code"
+          type="text"
+          value={postalCode}
+          onChange={handlePostalCodeChange}
+        />
+        <button onClick={refreshMortgageRates}>Refresh Mortgage Rates</button>
         <PropertyMap
           propertyList={propertyList}
           onPropertySelect={setSelectedProperty}
@@ -66,6 +63,11 @@ function App() {
           onDownPaymentChange={setDownPayment}
           onMortgageTermChange={setMortgageTerm}
         />
+        {mortgageData ? (
+          <MortgageRates mortgageData={mortgageData} />
+        ) : (
+          <p>Loading mortgage rates...</p>
+        )}
         <Results NOI={NOI} CoC={CoC} />
       </div>
     </MapContainerProvider>

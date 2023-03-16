@@ -4,7 +4,7 @@ const MORTGAGE_RATE_API_BASE_URL = "https://realty-in-us.p.rapidapi.com";
 
 const MLS_API_KEY = "your-mls-api-key";
 const RENTAL_API_KEY = "your-rental-api-key";
-const MORTGAGE_RATE_API_KEY = "";
+const MORTGAGE_RATE_API_KEY = process.env.REACT_APP_MORTGAGE_RATE_API_KEY;
 
 // ... Other API fetching functions ...
 

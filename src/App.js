@@ -13,8 +13,26 @@ import {
 } from "./utils/calculations";
 
 function App() {
-  const [propertyList, setPropertyList] = useState([]);
-  const [selectedProperty, setSelectedProperty] = useState(null);
+  const defaultProperty = {
+    price: 500000,
+    bedrooms: 4,
+    bathrooms: 3,
+    sqft: 2500,
+  };
+
+  const [propertyList, setPropertyList] = useState([
+    {
+      id: 1,
+      price: 500000,
+      bedrooms: 4,
+      bathrooms: 3,
+      sqft: 2500,
+      latitude: 47.6101,
+      longitude: -122.2015,
+    },
+  ]);
+
+  const [selectedProperty, setSelectedProperty] = useState(defaultProperty);
   const [downPayment, setDownPayment] = useState(0);
   const [mortgageTerm, setMortgageTerm] = useState(30);
   const [rentalData, setRentalData] = useState(null);
@@ -34,6 +52,22 @@ function App() {
     setMortgageData(mortgageData.data.loan_analysis.market.mortgage_data);
   };
 
+  useEffect(() => {
+    if (!selectedProperty || !rentalData || !mortgageData) return;
+
+    const mortgagePayment = calculateMortgagePayment(
+      selectedProperty.price - downPayment,
+      getSelectedMortgageRate(),
+      mortgageTerm
+    );
+    const expenses = estimateExpenses(selectedProperty, rentalData);
+    const NOI = calculateNOI(rentalData, expenses);
+    const CoC = calculateCoC(NOI, downPayment, mortgagePayment);
+
+    setNOI(NOI);
+    setCoC(CoC);
+  }, [selectedProperty, downPayment, mortgageTerm, rentalData, mortgageData]);
+
   const handlePostalCodeChange = (event) => {
     setPostalCode(event.target.value);
   };
@@ -42,6 +76,15 @@ function App() {
     const mortgageData = await fetchCurrentMortgageRates(postalCode);
     setMortgageData(mortgageData.data.loan_analysis.market.mortgage_data);
   };
+
+  function getSelectedMortgageRate() {
+    if (!mortgageData || !mortgageData.average_rates) return 0;
+
+    const selectedRate = mortgageData.average_rates.find(
+      (rate) => rate.loan_type.term === mortgageTerm
+    );
+    return selectedRate ? selectedRate.rate : 0;
+  }
 
   return (
     <MapContainerProvider>
@@ -63,6 +106,7 @@ function App() {
           onDownPaymentChange={setDownPayment}
           onMortgageTermChange={setMortgageTerm}
         />
+
         {mortgageData ? (
           <MortgageRates mortgageData={mortgageData} />
         ) : (
